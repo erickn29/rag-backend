@@ -2,9 +2,8 @@ from datetime import datetime
 from uuid import UUID
 
 from core.constants import TZ
-from schema.user import UserOutputSchema
+from repository.user import ServiceUser, UserRepoV1
 from service.auth import AuthService
-from service.user import UserServiceV1
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationError,
@@ -47,10 +46,10 @@ class SSOAuthMiddleware(AuthenticationMiddleware):
 class SSOAuthBackend:
     async def authenticate(
         self, conn: HTTPConnection
-    ) -> tuple[AuthCredentials, UserOutputSchema] | None:
-        if token := conn.headers.get("x-api-key"):  # noqa SIM102
-            if user := await self._get_service(token):
-                return AuthCredentials(["authenticated"]), user
+    ) -> tuple[AuthCredentials, ServiceUser] | None:
+        # if token := conn.headers.get("x-api-key"):  # noqa SIM102
+        #     if user := await self._get_service(token):
+        #         return AuthCredentials(["authenticated"]), user
 
         if token := conn.cookies.get("access_token"):  # noqa SIM102
             if user := await self._get_user(token):
@@ -58,7 +57,7 @@ class SSOAuthBackend:
 
         return None
 
-    async def _get_user(self, token: str) -> UserOutputSchema | None:
+    async def _get_user(self, token: str) -> ServiceUser | None:
         token_data = self._get_token_payload(token)
         self._check_iat(token_data)
         user_id = token_data.get("id")
@@ -69,15 +68,15 @@ class SSOAuthBackend:
             return None
         return await self._find_user(user_id)
 
-    async def _get_service(self, token: str) -> UserOutputSchema | None:
-        service_id = self._validate_token(token)
-        if not service_id:
-            return None
-        return await self._find_user(service_id)
+    # async def _get_service(self, token: str) -> ServiceUser | None:
+    #     service_id = self._validate_token(token)
+    #     if not service_id:
+    #         return None
+    #     return await self._find_user(service_id)
 
     @staticmethod
-    async def _find_user(user_id: UUID) -> UserOutputSchema | None:
-        return await UserServiceV1().find_by_id(user_id=user_id)
+    async def _find_user(user_id: UUID) -> ServiceUser | None:
+        return await UserRepoV1().get_user_sso(user_id)
 
     @staticmethod
     def _validate_token(token: str) -> UUID | None:

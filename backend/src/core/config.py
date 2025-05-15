@@ -16,6 +16,7 @@ class MainConfig(BaseSettings):
     is_local: bool = False
     secret_key: str = "123"
     frontend_url: str = "http://localhost:3000"
+    sso_api_key: str = "123"
 
 
 class AuthConfig(BaseSettings):
@@ -74,6 +75,12 @@ class EmailConfig(BaseSettings):
     port: int = 465
 
 
+class SSOConfig(BaseSettings):
+    host: str = "localhost"
+    port: int = 8000
+    path: str = "/api/v1/user/"
+
+
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=f"{Path(__file__).resolve().parent.parent}/.secrets/.env",
@@ -87,6 +94,7 @@ class Config(BaseSettings):
     db: DatabaseConfig = DatabaseConfig()
     redis: RedisConfig = RedisConfig()
     email: EmailConfig = EmailConfig()
+    sso: SSOConfig = SSOConfig()
 
 
 config = Config()

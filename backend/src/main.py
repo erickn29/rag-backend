@@ -7,12 +7,12 @@ from starlette.middleware import Middleware
 
 
 middleware = [
-    Middleware(SSOAuthMiddleware, backend=SSOAuthBackend()),
+    Middleware(SSOAuthMiddleware, backend=SSOAuthBackend()),  # type: ignore
 ]
 
 app = FastAPI(
     debug=config.app.debug,
-    title="SSO",
+    title="rag_backend",
     version="0.1.0",
     docs_url="/docs/" if config.app.debug else None,
     redoc_url="/redoc/" if config.app.debug else None,

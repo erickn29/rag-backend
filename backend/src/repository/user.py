@@ -1,45 +1,49 @@
+import json
+
+from datetime import datetime
 from uuid import UUID
 
-from model import User
-from repository.base import BaseRepo
-from schema.user import UserInputSchema, UserOutputSchema
+from core.cache import cache_service
+from core.config import config
+from pydantic import BaseModel
+from utils.sso import sso_handler
 
 
-class UserRepoV1(BaseRepo):
-    model = User
+class ServiceUser(BaseModel):
+    id: UUID
+    email: str
+    first_name: str
+    last_name: str
+    services: list
+    is_active: bool
+    is_admin: bool
+    is_service: bool
+    created_at: datetime
+    updated_at: datetime
 
-    async def create_user(
-        self, data: UserInputSchema, is_admin: bool = False
-    ) -> UserOutputSchema:
-        """Create user"""
-        obj = await self.create(**data.model_dump(), is_admin=is_admin)
-        return UserOutputSchema.model_validate(obj)
 
-    async def update_user(self, user_id: UUID, **data) -> UserOutputSchema | None:
-        """Update user"""
-        obj = await self.find(id=user_id)
-        if not obj:
+class UserRepoV1:
+    model = ServiceUser
+    user_cache_key = "user:"
+
+    async def get_user_sso(self, user_id: UUID) -> ServiceUser | None:
+        if user := await self._get_user_from_cache(user_id):
+            return user
+        user = await sso_handler.get_user(user_id)
+        if not user:
             return None
-        updated_obj = await self.update(obj, **data)
-        return UserOutputSchema.model_validate(updated_obj)
+        await self._set_user_to_cache(user)
+        return user
 
-    async def find_user(
-        self, is_password: bool = False, **filters
-    ) -> UserOutputSchema | None:
-        """Find user"""
-        obj: User | None = await self.find(**filters, is_active=True)
-        if not obj:
-            return None
-        user_schema = UserOutputSchema.model_validate(obj)
-        if is_password:
-            user_schema.password = obj.password  # type: ignore
-        return user_schema
+    async def _set_user_to_cache(self, user: ServiceUser):
+        user_json = self.model.model_dump_json(user)
+        await cache_service.set(
+            name=self.user_cache_key + str(user.id),
+            value=user_json,
+            ex=config.auth.access_token_expire,
+        )
 
-    async def delete_user(self, user_id: UUID) -> UserOutputSchema | None:
-        """Deactivate user"""
-        obj = await self.find(id=user_id)
-        if not obj:
-            return None
-        if user := await self.update(obj, **{"is_active": False}):
-            return UserOutputSchema.model_validate(user)
+    async def _get_user_from_cache(self, user_id: UUID) -> ServiceUser | None:
+        if user := await cache_service.get(self.user_cache_key + str(user_id)):
+            return self.model.model_validate(json.loads(user))
         return None

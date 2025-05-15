@@ -1,0 +1,17 @@
+stages:
+  - check
+  - test
+
+check:
+  stage: check
+  script:
+    - docker compose -f docker-compose-check.yaml up --build --abort-on-container-exit --exit-code-from app
+  after_script:
+    - docker compose -f docker-compose-check.yaml down --remove-orphans
+
+test:
+  stage: test
+  script:
+    - docker compose -f docker-compose-test.yaml up --build --abort-on-container-exit --exit-code-from app
+  after_script:
+    - docker compose -f docker-compose-test.yaml down --remove-orphans

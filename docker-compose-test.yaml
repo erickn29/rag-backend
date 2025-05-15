@@ -1,0 +1,31 @@
+services:
+
+  app:
+    mem_limit: 4g
+    cpus: 2.0
+    env_file:
+      - $env
+    build:
+      dockerfile: docker/Dockerfile.test
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    env_file:
+      - $env
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5

@@ -1,26 +1,11 @@
 import json
 
-from datetime import datetime
 from uuid import UUID
 
 from core.cache import cache_service
 from core.config import config
+from model.user import ServiceUser
 from utils.sso import sso_handler
-
-from pydantic import BaseModel
-
-
-class ServiceUser(BaseModel):
-    id: UUID
-    email: str
-    first_name: str
-    last_name: str
-    services: list
-    is_active: bool
-    is_admin: bool
-    is_service: bool
-    created_at: datetime
-    updated_at: datetime
 
 
 class UserRepoV1:

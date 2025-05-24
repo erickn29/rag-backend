@@ -65,9 +65,9 @@ class SSOAuthBackend:
         return await self._find_user(user_id)
 
     async def _get_user_id(self, token: str) -> UUID | None:
-        await self._verify_token(token)
         token_data = self._get_token_payload(token)
         self._check_iat(token_data)
+        await self._verify_token(token)
         return self._validate_user_id(token_data.get("id", ""))
 
     @staticmethod

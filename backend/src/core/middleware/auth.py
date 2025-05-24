@@ -1,6 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
+import jwt
+from jwt import InvalidTokenError
+
 from core.cache import cache_service
 from core.config import config
 from core.constants import TZ
@@ -92,9 +95,10 @@ class SSOAuthBackend:
 
     @staticmethod
     def _get_token_payload(token: str) -> dict:
-        if payload := AuthService().get_payload(token):
-            return payload
-        raise AuthenticationError("Error decode token")
+        try:
+            return jwt.decode(jwt=token, options={"verify_signature": False})
+        except InvalidTokenError:
+            raise AuthenticationError("Error decode token")
 
     @staticmethod
     def _check_iat(payload: dict):

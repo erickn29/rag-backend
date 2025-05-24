@@ -1,6 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
+from core.cache import cache_service
+from core.config import config
 from core.constants import TZ
 from repository.user import ServiceUser, UserRepoV1
 from service.auth import AuthService
@@ -12,6 +14,7 @@ from starlette.authentication import (
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.requests import HTTPConnection
 from starlette.types import Receive, Scope, Send
+from utils.sso import sso_handler
 
 
 class SSOAuthMiddleware(AuthenticationMiddleware):
@@ -47,44 +50,43 @@ class SSOAuthBackend:
     async def authenticate(
         self, conn: HTTPConnection
     ) -> tuple[AuthCredentials, ServiceUser] | None:
-        # if token := conn.headers.get("x-api-key"):  # noqa SIM102
-        #     if user := await self._get_service(token):
-        #         return AuthCredentials(["authenticated"]), user
-
         if token := conn.cookies.get("access_token"):  # noqa SIM102
             if user := await self._get_user(token):
                 return AuthCredentials(["authenticated"]), user
-
         return None
 
     async def _get_user(self, token: str) -> ServiceUser | None:
-        token_data = self._get_token_payload(token)
-        self._check_iat(token_data)
-        user_id = token_data.get("id")
-        if not user_id:
-            return None
-        user_id = self._validate_token(user_id)
+        user_id = await self._get_user_id(token)
         if not user_id:
             return None
         return await self._find_user(user_id)
 
-    # async def _get_service(self, token: str) -> ServiceUser | None:
-    #     service_id = self._validate_token(token)
-    #     if not service_id:
-    #         return None
-    #     return await self._find_user(service_id)
+    async def _get_user_id(self, token: str) -> UUID | None:
+        await self._verify_token(token)
+        token_data = self._get_token_payload(token)
+        self._check_iat(token_data)
+        return self._validate_user_id(token_data.get("id", ""))
+
+    @staticmethod
+    async def _verify_token(token: str):
+        if await cache_service.get(token):
+            return True
+        if await sso_handler.verify_token(token):
+            await cache_service.set(token, "True", config.auth.access_token_expire - 10)
+            return None
+        raise AuthenticationError("Token is not valid")
 
     @staticmethod
     async def _find_user(user_id: UUID) -> ServiceUser | None:
         return await UserRepoV1().get_user_sso(user_id)
 
     @staticmethod
-    def _validate_token(token: str) -> UUID | None:
-        if not token:
+    def _validate_user_id(user_id: str) -> UUID | None:
+        if not user_id:
             return None
         try:
-            token_uuid = UUID(token)
-            return token_uuid
+            user_id_uuid = UUID(user_id)
+            return user_id_uuid
         except ValueError:
             return None
 

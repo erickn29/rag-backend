@@ -1,1 +1,9 @@
-
+from model.conclusion import Conclusion as Conclusion
+from model.direction import Direction as Direction
+from model.division import Division as Division
+from model.doctor import Doctor as Doctor
+from model.organization import Organization as Organization
+from model.patient import Patient as Patient
+from model.position import Position as Position
+from model.session import DoctorSession as DoctorSession
+from model.status import Status as Status
